@@ -28,8 +28,6 @@ def create_chunks(pdf_doc):
 
 def get_embeddings(chunk_data):
     embeddings = []
-    generativeai.configure(api_key=os.environ["GEMINI_API_KEY"])
-
     status_text = st.text("Creating Embeddings")
     progress_bar = st.progress(0)
 
@@ -114,7 +112,7 @@ def main():
     st.title("Document Query App")  
     query = st.text_input(label="Enter your query")
     get_llm_answer = st.button("Get Answer")
-    if(get_llm_answer or query):
+    if(get_llm_answer):
         answer = get_answer(query)
         st.write(answer)
     
