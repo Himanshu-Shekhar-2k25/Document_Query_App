@@ -8,8 +8,11 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pinecone.grpc import PineconeGRPC as Pinecone
 import streamlit as st
 
+uploads_location = "user_uploads"
+
 def load_document(pdf_docs):
-    file_path = "user_doc.pdf"
+    file_path = os.path.join(uploads_location, f"user_doc{st.session_state.filename_dict[pdf_docs.name]}.pdf")
+
     with open(file_path, "wb") as f:
         f.write(pdf_docs.getbuffer())
                 
@@ -28,20 +31,15 @@ def create_chunks(pdf_doc):
 
 def get_embeddings(chunk_data):
     embeddings = []
-    status_text = st.text("Creating Embeddings")
-    progress_bar = st.progress(0)
 
     for i, chunk in enumerate(chunk_data):
         result = generativeai.embed_content(model="models/text-embedding-004",content=chunk)
         embeddings.append({'text':chunk, 'vector':result['embedding']})
-        progress = (i + 1) / len(chunk_data)
-        progress_bar.progress(progress)
 
-    status_text.text("Embeddings created succesfully.")
     return embeddings
 
 
-def pinecone_store(embeddings):
+def pinecone_store(embeddings, i):
     records = []
     id=0
     for embedding in embeddings:
@@ -52,22 +50,22 @@ def pinecone_store(embeddings):
         id = id+1
 
     stats = st.session_state.index.describe_index_stats()
-    if "namespaces" in stats and "ProjectVectorStore" in stats["namespaces"]:
-        st.session_state.index.delete(delete_all=True, namespace="ProjectVectorStore")
+    if "namespaces" in stats and f"ProjectVectorStore{i}" in stats["namespaces"]:
+        st.session_state.index.delete(delete_all=True, namespace=f"ProjectVectorStore{i}")
 
     st.session_state.index.upsert(
         vectors=records,
-        namespace="ProjectVectorStore")
+        namespace=f"ProjectVectorStore{i}")
     
     return st.session_state.index
 
-def get_answer(query):
+def get_answer(query, selected_document):
     query_embedding =   generativeai.embed_content(model="models/text-embedding-004",content=query)['embedding']
     
     query_result = st.session_state.index.query(
     vector=query_embedding,  
     top_k=5,  
-    namespace="ProjectVectorStore",
+    namespace=f"ProjectVectorStore{st.session_state.filename_dict[selected_document]}",
     include_metadata=True)
 
 
@@ -100,20 +98,41 @@ def main():
 
     with st.sidebar:
         st.subheader("Your document")
-        pdf_docs = st.file_uploader("Upload your PDF here", type=["pdf"])
+        pdf_docs = st.file_uploader("Upload your PDFs here", type=["pdf"], accept_multiple_files=True)
 
-        if pdf_docs is not None:
+
+        if pdf_docs is not None and len(pdf_docs) <= 5:
             if st.button("Process document"):
-                pdf_doc = load_document(pdf_docs)
-                chunk_data = create_chunks(pdf_doc)
-                embeddings = get_embeddings(chunk_data)
-                st.session_state.index = pinecone_store(embeddings)
+                st.session_state.filename_dict = {}
+                i = 0
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+
+                for doc in pdf_docs:
+                    status_text.text(f"Creating Embeddings for {doc.name}        {i+1}/{len(pdf_docs)}")
+                    st.session_state.filename_dict[doc.name] = i
+
+                    pdf_doc = load_document(doc)
+                    chunk_data = create_chunks(pdf_doc)
+                    embeddings = get_embeddings(chunk_data)
+                    st.session_state.index = pinecone_store(embeddings, i)
+
+                    progress = (i + 1) / len(pdf_docs)
+                    progress_bar.progress(progress)
+                    
+                    i = i+1
+                status_text.text("Embeddings created succesfully.")
+        else:
+            st.error("Max 5 documents can be uploaded.")
+        
 
     st.title("Document Query App")  
+
+    selected_document = st.selectbox("Choose a file to query", [file for file in st.session_state.filename_dict])
     query = st.text_input(label="Enter your query")
     get_llm_answer = st.button("Get Answer")
     if(get_llm_answer):
-        answer = get_answer(query)
+        answer = get_answer(query, selected_document)
         st.write(answer)
     
 
