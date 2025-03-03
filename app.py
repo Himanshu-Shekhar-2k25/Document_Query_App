@@ -9,6 +9,9 @@ from pinecone.grpc import PineconeGRPC as Pinecone
 import streamlit as st
 
 uploads_location = "user_uploads"
+os.makedirs(uploads_location, exist_ok=True)
+if 'filename_dict' not in st.session_state:
+    st.session_state.filename_dict = {}
 
 def load_document(pdf_docs):
     file_path = os.path.join(uploads_location, f"user_doc{st.session_state.filename_dict[pdf_docs.name]}.pdf")
@@ -103,7 +106,7 @@ def main():
 
         if pdf_docs is not None and len(pdf_docs) <= 5:
             if st.button("Process document"):
-                st.session_state.filename_dict = {}
+                # st.session_state.filename_dict = {}
                 i = 0
                 progress_bar = st.progress(0)
                 status_text = st.empty()
