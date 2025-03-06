@@ -1,9 +1,7 @@
 import os
 from dotenv import load_dotenv
 import google.generativeai as generativeai
-from google import genai
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pinecone.grpc import PineconeGRPC as Pinecone
 import streamlit as st
@@ -63,7 +61,7 @@ def pinecone_store(embeddings, i):
     return st.session_state.index
 
 def get_answer(query, selected_document):
-    query_embedding =   generativeai.embed_content(model="models/text-embedding-004",content=query)['embedding']
+    query_embedding = generativeai.embed_content(model="models/text-embedding-004",content=query)['embedding']
     
     query_result = st.session_state.index.query(
     vector=query_embedding,  
@@ -81,10 +79,7 @@ def get_answer(query, selected_document):
     prompt = "The user will ask some question. The context of the information will be provided. Answer from the given context only. DO NOT ANSWER FROM YOUR KNOWLEDGE OR TRY TO MAKE UP SOME ANSWER. IF ANSWER IS NOT PRESENT REPLY 'I DO NOT KNOW'"
 
     final_query = prompt + '\n\n' + context +'\n\n' + query
-
-
-    response = st.session_state.client.models.generate_content(
-    model="gemini-1.5-flash", contents=final_query)
+    response = st.session_state.model.generate_content(final_query)
 
     return response.text
 
@@ -94,9 +89,9 @@ def main():
     os.environ["PINECONE_API_KEY"] = os.getenv("PINECONE_API_KEY")
     generativeai.configure(api_key=os.environ["GEMINI_API_KEY"])
 
-    st.session_state.client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    st.session_state.model = generativeai.GenerativeModel("gemini-1.5-flash")
     st.session_state.pc = Pinecone(api_key=os.environ["PINECONE_API_KEY"])
-    st.session_state.index = index = st.session_state.pc.Index("project-index")
+    st.session_state.index = st.session_state.pc.Index("project-index")
 
 
     with st.sidebar:
@@ -106,7 +101,6 @@ def main():
 
         if pdf_docs is not None and len(pdf_docs) <= 5:
             if st.button("Process document"):
-                # st.session_state.filename_dict = {}
                 i = 0
                 progress_bar = st.progress(0)
                 status_text = st.empty()
