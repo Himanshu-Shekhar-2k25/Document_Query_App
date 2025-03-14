@@ -89,7 +89,7 @@ def main():
     os.environ["PINECONE_API_KEY"] = os.getenv("PINECONE_API_KEY")
     generativeai.configure(api_key=os.environ["GEMINI_API_KEY"])
 
-    st.session_state.model = generativeai.GenerativeModel("gemini-1.5-flash")
+    st.session_state.model = generativeai.GenerativeModel("gemini-2.0-flash")
     st.session_state.pc = Pinecone(api_key=os.environ["PINECONE_API_KEY"])
     st.session_state.index = st.session_state.pc.Index("project-index")
 
