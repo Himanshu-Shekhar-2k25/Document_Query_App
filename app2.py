@@ -18,9 +18,9 @@ def load_document(pdf_docs):
     with open(file_path, "wb") as f:
         f.write(pdf_docs.getbuffer())
                 
-        loader = PyPDFLoader(file_path)
-        pdf_doc = loader.load()
-        return pdf_doc
+    loader = PyPDFLoader(file_path)
+    pdf_doc = loader.load()
+    return pdf_doc
 
 def create_chunks(pdf_doc):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=10)
@@ -76,17 +76,14 @@ def get_answer(query):
             doc_info[current_doc] = doc_info[current_doc] + '\n' + match['metadata']['text']
 
     for key, value in doc_info.items():
-        context = context + f"**** {key} ****" + '\n\n' + value + '\n\n'
-        # information = match['metadata']['text']
-        # context = context + information + '\n\n'
-
+        context = context + f"**** {key} ****" + '\n\n' + value + '\n\n\n\n\n\n'
 
     prompt = """The user will ask some question. The context of the information will be provided in the form of text from one or more documents. Carefully go through the provided context from each document. If you find any suitable answer from a document include it in your answer. TRY TO FIND ANSWER FROM AS MANY DOCUMENTS AS POSSIBLE WITHOUT MISINTERPRETING THE CONTEXT. For each answer from a document, specify the document name and then the required answer from that document context. IN YOUR RESPONSE HIGHLIGHT THE FILENAME FROM WHICH YOU ARE GIVING RESPONSE AND DO NOT REPEAT THE SAME FILE NAME AGAIN.
     
     Answer from the given context only. DO NOT ANSWER FROM YOUR KNOWLEDGE OR TRY TO MAKE UP SOME ANSWER. IF ANSWER IS NOT PRESENT REPLY 'I DO NOT KNOW.'"""
 
-    # with open("context_info.txt", "w", encoding="utf-8") as f:
-    #     f.write(context)
+    with open("context_info.txt", "w", encoding="utf-8") as f:
+        f.write(context)
 
     final_query = prompt + '\n\n' + context +'\n\n' + query
     response = st.session_state.model.generate_content(final_query)
