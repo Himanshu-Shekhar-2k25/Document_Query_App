@@ -83,9 +83,6 @@ def get_answer(query):
     
     Answer from the given context only. DO NOT ANSWER FROM YOUR KNOWLEDGE OR TRY TO MAKE UP SOME ANSWER. IF ANSWER IS NOT PRESENT REPLY 'I DO NOT KNOW.'"""
 
-    with open("context_info.txt", "w", encoding="utf-8") as f:
-        f.write(context)
-
     final_query = prompt + '\n\n' + context +'\n\n' + query
     response = st.session_state.model.generate_content(final_query)
 
@@ -145,7 +142,7 @@ def main():
     query = ""
     if choice == "Text":
         query = st.text_input(label="Enter your query")
-    else:
+    elif choice == "Audio":
         audio_query = st.audio_input("Ask your query")
         if audio_query:
             with open("user_query.wav", "wb") as f:
