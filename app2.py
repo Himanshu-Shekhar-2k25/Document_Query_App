@@ -6,6 +6,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pinecone.grpc import PineconeGRPC as Pinecone
 import streamlit as st
 import shutil
+from groq import Groq
 
 uploads_location = "user_uploads"
 if os.path.exists(uploads_location) and os.path.isdir(uploads_location):
@@ -94,12 +95,14 @@ def main():
     load_dotenv()
     os.environ["GEMINI_API_KEY"] = os.getenv("GEMINI_API_KEY")
     os.environ["PINECONE_API_KEY"] = os.getenv("PINECONE_API_KEY")
+    os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY")
     generativeai.configure(api_key=os.environ["GEMINI_API_KEY"])
 
     st.session_state.model = generativeai.GenerativeModel("gemini-2.0-flash")
     st.session_state.pc = Pinecone(api_key=os.environ["PINECONE_API_KEY"])
     st.session_state.index = st.session_state.pc.Index("project-index")
     st.session_state.id = 0
+    st.session_state.groq_client = Groq()
 
     if 'pinecone_preprocess' not in st.session_state:
         stats = st.session_state.index.describe_index_stats()
@@ -121,7 +124,6 @@ def main():
 
                 for doc in pdf_docs:
                     status_text.text(f"Creating Embeddings for {doc.name}        {i+1}/{len(pdf_docs)}")
-                    # st.session_state.filenames.append(doc.name)
 
                     pdf_doc = load_document(doc)
                     chunk_data = create_chunks(pdf_doc)
@@ -139,8 +141,20 @@ def main():
 
     st.title("Document Query App")  
 
-    # selected_document = st.selectbox("Choose a file to query", [file for file in st.session_state.filename_dict])
-    query = st.text_input(label="Enter your query")
+    choice = st.pills("Select Input Method", ("Text", "Audio"))
+    query = ""
+    if choice == "Text":
+        query = st.text_input(label="Enter your query")
+    else:
+        audio_query = st.audio_input("Ask your query")
+        if audio_query:
+            with open("user_query.wav", "wb") as f:
+                f.write(audio_query.getbuffer())
+            with open("user_query.wav", "rb") as file:
+                transcription = st.session_state.groq_client.audio.transcriptions.create(file=file,model="whisper-large-v3-turbo")
+                st.text(transcription.text)
+                query = transcription.text
+
     get_llm_answer = st.button("Get Answer")
     if(get_llm_answer):
         answer = get_answer(query)
