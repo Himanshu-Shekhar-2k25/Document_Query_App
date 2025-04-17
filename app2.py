@@ -149,8 +149,7 @@ def main():
                 f.write(audio_query.getbuffer())
             with open("user_query.wav", "rb") as file:
                 transcription = st.session_state.groq_client.audio.transcriptions.create(file=file,model="whisper-large-v3-turbo")
-                st.text(transcription.text)
-                query = transcription.text
+                query = st.text_input(label = "The entered query", value = transcription.text)
 
     get_llm_answer = st.button("Get Answer")
     if(get_llm_answer):
