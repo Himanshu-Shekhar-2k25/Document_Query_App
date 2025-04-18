@@ -2,6 +2,8 @@ import os
 from dotenv import load_dotenv
 import google.generativeai as generativeai
 from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.document_loaders.text import TextLoader
+from langchain_community.document_loaders import UnstructuredWordDocumentLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pinecone.grpc import PineconeGRPC as Pinecone
 import streamlit as st
@@ -18,10 +20,23 @@ def load_document(pdf_docs):
 
     with open(file_path, "wb") as f:
         f.write(pdf_docs.getbuffer())
-                
-    loader = PyPDFLoader(file_path)
-    pdf_doc = loader.load()
-    return pdf_doc
+
+    file_type = pdf_docs.type
+    
+    if file_type == "application/pdf":
+        loader = PyPDFLoader(file_path)
+        pdf_doc = loader.load()
+        return pdf_doc
+    
+    elif file_type == "text/plain":
+        loader = TextLoader(file_path)
+        txt_doc = loader.load()
+        return txt_doc
+    
+    elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        loader = UnstructuredWordDocumentLoader(file_path)
+        docx_doc = loader.load()
+        return docx_doc
 
 def create_chunks(pdf_doc):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=10)
@@ -79,7 +94,7 @@ def get_answer(query):
     for key, value in doc_info.items():
         context = context + f"**** {key} ****" + '\n\n' + value + '\n\n\n\n\n\n'
 
-    prompt = """The user will ask some question. The context of the information will be provided in the form of text from one or more documents. Carefully go through the provided context from each document. If you find any suitable answer from a document include it in your answer. TRY TO FIND ANSWER FROM AS MANY DOCUMENTS AS POSSIBLE WITHOUT MISINTERPRETING THE CONTEXT. For each answer from a document, specify the document name and then the required answer from that document context. IN YOUR RESPONSE HIGHLIGHT THE FILENAME FROM WHICH YOU ARE GIVING RESPONSE AND DO NOT REPEAT THE SAME FILE NAME AGAIN.
+    prompt = """The user will ask some question. The context of the information will be provided in the form of text from one or more documents. Carefully go through the provided context from each document. If you find any suitable answer from a document include it in your answer. TRY TO FIND ANSWER FROM AS MANY DOCUMENTS AS POSSIBLE WITHOUT MISINTERPRETING THE CONTEXT. For each answer from a document, specify the document name and then the required answer from that document context. IN YOUR RESPONSE HIGHLIGHT THE FILENAME FROM WHICH YOU ARE GIVING RESPONSE AND DO NOT REPEAT THE SAME FILE NAME AGAIN. FRAME ANSWERS FROM DIFFERENT DOCUMENTS IN DIFFERENT PARAGRAPHS.
     
     Answer from the given context only. DO NOT ANSWER FROM YOUR KNOWLEDGE OR TRY TO MAKE UP SOME ANSWER. IF ANSWER IS NOT PRESENT REPLY 'I DO NOT KNOW.'"""
 
@@ -110,7 +125,7 @@ def main():
 
     with st.sidebar:
         st.subheader("Your document")
-        pdf_docs = st.file_uploader("Upload your PDFs here", type=["pdf"], accept_multiple_files=True)
+        pdf_docs = st.file_uploader("Upload your PDFs here", type=["pdf", "txt", "docx"], accept_multiple_files=True)
 
 
         if pdf_docs is not None:
