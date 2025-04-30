@@ -82,19 +82,34 @@ def get_answer(query):
  
     conversation_context = "\n\n"
     if 'conversation_history' in st.session_state and st.session_state.conversation_history:
-        for entry in st.session_state.conversation_history[-5:]:  
+        for entry in st.session_state.conversation_history[-10:]:  
             conversation_context += f"""User Query: {entry['query']}"""+'\n'+f"""Model Response: {entry['response']}\n\n"""
         conversation_context += "\n"
 
-    prompt = """The user will ask a question or give some information. You have two sources of information:
-1. Document Context: Text from one or more documents, provided below with filenames.
-2. User query: The question the user asked.
-The user query can contain additional info so read it and use it for answer and do not say dont know when user ask you remember it .
+    prompt = """The user will ask a question or provide some information. You have three sources of information:
 
-Go through the context from all the documents. Multiple documents can contain the answer to the same question. If you find answer in a document, put the Document name at the beginning and then give your answer. DO THIS FOR ALL DOCUMENTS. FOR EACH DOCUMENT ANSWER MAKE A SEPERATE PARAGRAPH.
+    1) Document Context – Text from one or more documents, provided below with filenames.
 
+    2) User Query – The question the user asked, which can also contain additional information.
 
-**Document Context**:\n{context}\n\n**Conversation History**:\n{conversation_context}\n\n**User Query**:\n{query}"""
+    3) Conversation History – Previous interactions that may contain relevant context or facts shared earlier.
+
+    Carefully go through the context from each document and refer to both the User Query and Conversation History when forming your answer. If you find an answer in a document, include it in your response. For each answer from a document, start with the document name (highlighted clearly) and then provide the relevant answer. Do not repeat the same filename again. Frame answers from different documents in different paragraphs.
+
+    Try to find an answer from as many documents as possible without misinterpreting the context. Answer only from the given Document Context and the Conversation History. Do not answer from your own knowledge or make up an answer.
+
+    If the answer is not present in any of the documents or conversation history, reply with: "I DO NOT KNOW."
+
+    However, if the user provides any information in the query, do not respond with "I DO NOT KNOW." Instead, incorporate the provided information and use it as part of your response if needed. This includes cases where the user asks you to remember something — treat such cases as additional context in the User Query.
+
+    Document Context:
+    {context}
+    \n\n
+    Conversation History:
+    {conversation_context}
+    \n\n
+    User Query:
+    {query}"""
 
     final_query = prompt.format(context=context, conversation_context=conversation_context, query=query)
     response = st.session_state.model.generate_content(final_query)
@@ -112,7 +127,7 @@ def main():
     os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY")
     generativeai.configure(api_key=os.environ["GEMINI_API_KEY"])
 
-    st.session_state.model = generativeai.GenerativeModel("gemini-2.0-flash")
+    st.session_state.model = generativeai.GenerativeModel("gemini-2.0-flash-lite")
     st.session_state.pc = Pinecone(api_key=os.environ["PINECONE_API_KEY"])
     st.session_state.index = st.session_state.pc.Index("project-index")
     st.session_state.id = 0
@@ -126,7 +141,7 @@ def main():
 
     with st.sidebar:
         st.subheader("Your document")
-        pdf_docs = st.file_uploader("Upload your PDFs here", type=["pdf", "txt", "docx"], accept_multiple_files=True)
+        pdf_docs = st.file_uploader("Upload your documents here", type=["pdf", "txt", "docx"], accept_multiple_files=True)
 
         if pdf_docs is not None:
             if st.button("Process document"):
