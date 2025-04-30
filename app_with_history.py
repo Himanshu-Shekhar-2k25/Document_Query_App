@@ -133,12 +133,6 @@ def main():
     st.session_state.id = 0
     st.session_state.groq_client = Groq()
 
-    if 'pinecone_preprocess' not in st.session_state:
-        stats = st.session_state.index.describe_index_stats()
-        if "namespaces" in stats and "ProjectVectorStore" in stats["namespaces"]:
-            st.session_state.index.delete(delete_all=True, namespace="ProjectVectorStore")
-        st.session_state.pinecone_preprocess = True
-
     with st.sidebar:
         st.subheader("Your document")
         pdf_docs = st.file_uploader("Upload your documents here", type=["pdf", "txt", "docx"], accept_multiple_files=True)
